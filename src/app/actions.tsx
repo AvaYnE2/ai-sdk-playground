@@ -1,7 +1,8 @@
 "use server";
 
-import type { ExchangeRate, Weather } from "@/app/models";
+import type { ExchangeRate, NeoData, Weather } from "@/app/models";
 import { CurrencyDisplay } from "@/components/currency-display";
+import { Neo_3dVisualization } from "@/components/neo-3d-visualization";
 import { WeatherComponentComponent } from "@/components/weather-component";
 import { openai } from "@ai-sdk/openai";
 import { streamUI } from "ai/rsc";
@@ -55,6 +56,25 @@ async function getExchangeRate(baseCurrency: string, targetCurrency: string) {
 	return result;
 }
 
+async function getAsteroidData(startDate: string, endDate: string) {
+	const apiKey = "DEMO_KEY";
+	const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${startDate}&end_date=${endDate}&api_key=${apiKey}`;
+
+	const response = await fetch(url);
+	const data = (await response.json()) as NeoData;
+
+	data.near_earth_objects[startDate] = [
+		{
+			id: "3542519",
+			name: "Earth",
+			estimated_diameter: { kilometers: { estimated_diameter_max: 12742 } },
+			close_approach_data: [{ miss_distance: { kilometers: "0" } }],
+		},
+		...data.near_earth_objects[startDate],
+	];
+	return data;
+}
+
 export async function streamComponent(userInput: string) {
 	const result = await streamUI({
 		model: openai("gpt-4o-mini"),
@@ -93,6 +113,20 @@ export async function streamComponent(userInput: string) {
 					);
 
 					return <CurrencyDisplay conversionRate={exchangeRate} />;
+				},
+			},
+			getAsteroidData: {
+				description: "Get the data of the asteroids near earth",
+				parameters: z.object({
+					startDate: z.string().describe("From when to get the data"),
+					endDate: z.string().describe("Until when to get the data"),
+				}),
+				generate: async function* ({ startDate, endDate }) {
+					yield <LoadingComponent />;
+
+					const response = await getAsteroidData(startDate, endDate);
+
+					return <Neo_3dVisualization data={response} />;
 				},
 			},
 		},
