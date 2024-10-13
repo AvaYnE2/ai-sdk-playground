@@ -13,3 +13,10 @@ export interface Weather {
 		condition: string;
 	}[];
 }
+
+export interface ExchangeRate {
+	baseCurrency: string;
+	targetCurrency: string;
+	rate: number;
+	time_last_update_unix: number;
+}
